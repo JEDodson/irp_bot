@@ -1,10 +1,12 @@
 import os
+from re import search
 import discord
 import random
 from dotenv import load_dotenv
 from discord.ext import commands
 import logging
-# import requests
+import praw
+import requests
 
 logging.basicConfig(format="%(asctime)s"+" "*20+"%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -12,6 +14,13 @@ logger.setLevel(logging.INFO)
 
 load_dotenv()
 D_TOKEN = os.getenv("DISCORD_TOKEN")
+R_ID = os.getenv("R_ID")
+R_SECRET = os.getenv("R_SECRET")
+r = praw.Reddit(
+    client_id=R_ID,
+    client_secret=R_SECRET,
+    user_agent="I-RP Bot's random meme grabber"
+)
 
 intents = discord.Intents.default()
 intents.members = True
@@ -58,6 +67,26 @@ class FunCommands(commands.Cog):
             await ctx.send("Please enter two numbers (integers), e.g. 1-6!")
         else:
             await ctx.send(f"Between {start}-{end}, {author} rolled: {n}!")
+
+    @commands.command(name="meme", help="Grabs a meme from /r/memes")
+    async def meme(self, ctx):
+
+        author = ctx.author
+        logger.info(f"Running meme command, triggered by {author}")
+
+        subreddit = r.subreddit("memes")
+        memes = [m for m in subreddit.hot(limit=35)]
+
+        r_num = random.randint(0, 20)
+        r_meme = memes[r_num]
+
+        meme_json = f"https://www.reddit.com/r/memes/{r_meme}/.json"
+        resp = requests.get(
+            url=meme_json,
+            headers={"User-agent": "Random Meme Grabber for I-RP"}).json()
+
+        img = resp[0]['data']['children'][0]['data']['url_overridden_by_dest']
+        await ctx.send(img)
 
 
 bot.add_cog(FunCommands())
